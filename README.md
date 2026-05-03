@@ -4,51 +4,21 @@ A small Rust synth that recreates the THX Deep Note vibe by evolving a cloud of 
 
 ## Signal Flow
 
-```mermaid
-flowchart LR
-	A[Init: N oscillators] --> B[Audio callback
-	sum sine voices]
-	B --> C[DAC output]
-	D[Control loop
-	5 ms tick] --> E[Stage 1
-	Perlin pitch wander]
-	E --> F[Stage 2
-	sort + map to chord]
-	F --> G[Glide + amplitude rise]
-	G --> B
-```
-
-## Implementation Stages
-
-```mermaid
-sequenceDiagram
-	participant Init as Init
-	participant S1 as Stage 1 (Cloud)
-	participant S2 as Stage 2 (Chord)
-	Init->>S1: 30 oscillators at 220 Hz, low amp
-	S1->>S1: Perlin noise modulates each freq
-	S1->>S2: After ~5 s
-	S2->>S2: Sort notes by freq
-	S2->>S2: Map to chord tones + small detune
-	S2->>S2: Exponential glide + amp lift
-```
+Init oscillators -> audio callback (sum sines) -> output
+Control loop -> stage 1 (Perlin pitch wander) -> stage 2 (sort + chord map) -> glide + amp lift -> audio callback
 
 ## Sorting and Mapping
 
 The transition into the final chord is built from three steps:
 
-```text
 1) Collect current freqs (cloud)
 2) Sort ascending
 3) Map each index -> chord tone bucket
-```
 
 Mapping logic (from code):
 
-```text
 index_bucket = floor(i / NOTE_COUNT * chord_notes)
 target_freq = chord[index_bucket] * random detune
-```
 
 This ensures low notes land on low chord tones and high notes land on high chord tones, preserving the spectral "rise" while locking into harmony.
 
