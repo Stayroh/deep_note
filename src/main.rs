@@ -82,7 +82,7 @@ fn main() {
 
     stream.play().expect("Failed to play stream");
 
-    
+    // Use a fixed time step for control updates (synthesis runs in the audio callback).
     let target_time_step = Duration::from_millis(5);
     let mut last_time = Instant::now();
     let start_time = last_time.clone();
@@ -92,6 +92,7 @@ fn main() {
     {
         let mut notes = notes_clone.lock().unwrap();
         for i in 0..NOTE_COUNT {
+            // Start all oscillators at a common low pitch and gentle level.
             notes.push(Note::new(220.0, 0.02, i as u32));
         }
     }
@@ -105,15 +106,16 @@ fn main() {
 
 
 
+    // First stage: Perlin-driven wandering to build a cloud of detuned tones.
     loop {
         let current_time = Instant::now();
-        let delta_time = current_time.duration_since(last_time).as_secs_f64();
         let sim_time = current_time.duration_since(start_time).as_secs_f64();
         last_time = current_time;
 
         {
             let mut notes = notes_clone.lock().unwrap();
             for note in notes.iter_mut() {
+                // Low-frequency noise shapes target pitch movement per oscillator.
                 let noise_value = noise.get([sim_time * 0.05 + note.id as f64 * 0.3, note.id as f64 * 132.0 + 0.5]) as f32;
                 note.freq = (noise_value / 2.0 + 0.5).powf(1.4) * (high - low) + low;
             }
@@ -148,20 +150,20 @@ fn main() {
         for (i, note) in notes.iter_mut().enumerate() {
             note.initial_freq = note.freq;
 
+            // Map each oscillator onto a chord tone with a tiny random detune.
             note.target_freq = chord[f32::floor((i as f32) / (NOTE_COUNT as f32) * (chord_notes as f32)) as usize] * random_range(0.998..1.0)
         }
     }
 
 
-    let mut last_time = Instant::now();
     let start_time = last_time.clone();
 
     let transition: f32 = 1.7;
 
+    // Second stage: glide from the noisy cloud into a stable chord cluster.
     loop {
         let current_time = Instant::now();
         let sim_time = current_time.duration_since(start_time).as_secs_f64();
-        last_time = current_time;
 
         {
             let alpha = ((1.0 - transition.powf(-sim_time as f32)) * 1.005).min(1.0);
